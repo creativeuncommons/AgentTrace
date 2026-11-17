@@ -1,0 +1,77 @@
+#!/usr/bin/env python3
+"""
+AgentTrace CI Trajectory Grader CLI (Zero Dependencies)
+======================================================
+Usage:
+    agenttrace-check --actual trace_actual.json --golden trace_golden.json [--max-dist 0] [--cost-tol 1.25]
+"""
+
+import sys
+import os
+import json
+import argparse
+
+# Include agenttrace-py
+DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(DIR, "agenttrace-py"))
+
+from agenttrace import compute_structural_distance, evaluate_trajectory_gate
+
+
+def main():
+    parser = argparse.ArgumentParser(description="AgentTrace Golden-Path Trajectory Grader for CI/CD")
+    parser.add_argument("--actual", required=True, help="Path to actual execution trace JSON/JSONL")
+    parser.add_argument("--golden", required=True, help="Path to authoritative golden path trace JSON")
+    parser.add_argument("--max-dist", type=int, default=0, help="Maximum allowable structural edit distance (default 0)")
+    parser.add_argument("--cost-tol", type=float, default=1.25, help="Maximum cost inflation ratio vs golden (default 1.25)")
+    parser.add_argument("--lat-tol", type=float, default=1.50, help="Maximum latency inflation ratio vs golden (default 1.50)")
+    args = parser.parse_args()
+
+    if not os.path.exists(args.actual):
+        print(f"❌ Actual trace file not found: {args.actual}", file=sys.stderr)
+        sys.exit(2)
+    if not os.path.exists(args.golden):
+        print(f"❌ Golden trace file not found: {args.golden}", file=sys.stderr)
+        sys.exit(2)
+
+    with open(args.actual, "r", encoding="utf-8") as f:
+        actual_data = json.load(f)
+    with open(args.golden, "r", encoding="utf-8") as f:
+        golden_data = json.load(f)
+
+    # Normalize if steps is array directly
+    if isinstance(actual_data, list): actual_data = {"steps": actual_data}
+    if isinstance(golden_data, list): golden_data = {"steps": golden_data}
+
+    res = evaluate_trajectory_gate(
+        actual_data, golden_data,
+        max_edit_distance=args.max_dist,
+        cost_tolerance_ratio=args.cost_tol,
+        latency_tolerance_ratio=args.lat_tol
+    )
+
+    print("=" * 60)
+    print("🎯 AGENTTRACE TRAJECTORY GRADER (CI MERGE GATE)")
+    print("=" * 60)
+    print(f"• Verdict:                  {res['verdict']}")
+    print(f"• Structural Edit Distance: {res['structural_edit_distance']} (max allowed: {args.max_dist})")
+    print(f"• Cost Ratio:               {res['cost_ratio']}x (max allowed: {args.cost_tol}x)")
+    print(f"• Latency Ratio:            {res['latency_ratio']}x (max allowed: {args.lat_tol}x)")
+    
+    if res['diffs']:
+        print("-" * 60)
+        print("Trajectory Divergence Diffs:")
+        for d in res['diffs']:
+            print(f"  {d}")
+
+    print("=" * 60)
+    if not res["passed"]:
+        print("❌ CI FAILED: Tool execution trajectory deviated from golden path.")
+        sys.exit(1)
+    else:
+        print("✅ CI PASSED: 100% Golden path alignment verified.")
+        sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()

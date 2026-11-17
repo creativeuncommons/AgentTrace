@@ -1,0 +1,76 @@
+name: AgentTrace Release & Conformance Matrix
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test-agenttrace:
+    name: Run Conformance Tests (Python ${{ matrix.python-version }} on ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ['3.11', '3.12']
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Run Unit Tests
+        run: |
+          python -m unittest discover -s tests -p "test_*.py"
+
+      - name: Verify CLI Grader
+        shell: bash
+        run: |
+          chmod +x scripts/agenttrace-check
+          python scripts/agenttrace-check --help
+
+  package-release:
+    name: Package Assets & Publish GitHub Release
+    needs: test-agenttrace
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Organize Distribution Bundle
+        run: |
+          mkdir -p dist/packages
+          
+          # Copy standalone Python library and CI grader CLI
+          cp agenttrace-py/agenttrace.py dist/packages/agenttrace.py
+          cp scripts/agenttrace-check dist/packages/agenttrace-check
+          chmod +x dist/packages/agenttrace.py dist/packages/agenttrace-check
+          
+          # Generate SHA-256 Checksums
+          cd dist/packages
+          sha256sum * > SHA256SUMS.txt
+          cd ../..
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            dist/packages/*
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(github.ref, '-rc') || contains(github.ref, '-beta') || contains(github.ref, '-alpha') }}

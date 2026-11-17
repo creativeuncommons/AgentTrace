@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.DS_Store
+.agenttrace/
+traces/
+*.db
+dist/
+dist_promoted/
+scratch/
