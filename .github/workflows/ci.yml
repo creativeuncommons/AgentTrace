@@ -24,8 +24,11 @@ jobs:
         run: python -m unittest discover -s tests -p "test_*.py" -v
 
   rust-test:
-    name: Rust Core Build & Tests
-    runs-on: ubuntu-latest
+    name: Rust Core Build & Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
       - name: Set up Rust toolchain
