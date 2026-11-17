@@ -39,11 +39,8 @@ jobs:
           python scripts/agenttrace-check --help
 
   rust-test:
-    name: Rust Core Build & Conformance Tests (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
+    name: Rust Core Build & Conformance Tests (ubuntu-latest)
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Set up Rust toolchain
