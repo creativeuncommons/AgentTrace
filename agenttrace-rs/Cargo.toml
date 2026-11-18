@@ -3,7 +3,7 @@ name = "agenttrace-rs"
 version = "0.1.0"
 edition = "2021"
 description = "Zero-bloat W3C distributed tracing & trajectory telemetry for autonomous AI agents in Rust"
-license = "MIT"
+license = "Apache-2.0"
 authors = ["AgentTrace Core Team"]
 
 [dependencies]
